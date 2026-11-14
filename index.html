@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <title>Event QR Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root{color-scheme:dark;--bg:#101827;--panel:#1c293b;--line:#34445a;--muted:#a8b5c7;--accent:#60a5fa;--good:#22c55e;--bad:#fb7185;--warn:#fbbf24}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f8fafc;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    main{max-width:620px;margin:auto;padding:18px 16px 34px}.brand{font-size:13px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+    h1{font-size:26px;margin:4px 0 18px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0}
+    label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
+    input{width:100%;padding:13px 12px;border:1px solid var(--line);border-radius:11px;background:#0e1725;color:white;font-size:16px}
+    .modes{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0}
+    button{border:0;border-radius:11px;padding:13px 12px;font-size:15px;font-weight:700;cursor:pointer}
+    .mode{background:#29384e;color:#dbeafe}.mode.active{background:var(--accent);color:#071426}
+    .primary{width:100%;background:#2563eb;color:white;margin-top:12px}.secondary{background:#34445a;color:white}
+    #reader{width:100%;overflow:hidden;border-radius:14px;background:#0b1220;min-height:230px}
+    #reader video{object-fit:cover!important}.hint{font-size:13px;color:var(--muted)}
+    .result{border-radius:14px;padding:14px;margin-top:12px;background:#26364b;border:1px solid var(--line);min-height:76px}
+    .result.good{border-color:#15803d;background:#123522}.result.bad{border-color:#be123c;background:#3b1723}.result.warn{border-color:#a16207;background:#392d14}
+    .result strong{display:block;font-size:18px;margin-bottom:3px}.time{font-variant-numeric:tabular-nums;color:#dbeafe}
+    .statusline{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+    .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn);margin-right:7px}
+    .foot{font-size:12px;color:var(--muted);margin-top:18px}
+    .hidden{display:none!important}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">Sistem registrasi acara</div>
+  <h1>Event QR Scanner</h1>
+
+  <section class="panel">
+    <div class="statusline"><span><span class="dot" id="apiDot"></span><span id="apiStatus">Backend belum diuji</span></span><span id="modeLabel">Mode: Check-in</span></div>
+    <label for="operator">Nama petugas / loket</label>
+    <input id="operator" autocomplete="name" placeholder="Contoh: Meja Registrasi 1">
+    <label for="pin">PIN petugas</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Masukkan PIN sesuai mode">
+    <div class="modes">
+      <button class="mode active" id="checkinMode" type="button">Check-in</button>
+      <button class="mode" id="souvenirMode" type="button">Souvenir</button>
+    </div>
+    <div class="hint">Gunakan PIN check-in untuk loket registrasi dan PIN souvenir untuk loket penukaran.</div>
+  </section>
+
+  <section class="panel">
+    <div id="reader"></div>
+    <button class="primary" id="startBtn" type="button">Aktifkan kamera</button>
+    <button class="secondary hidden" id="stopBtn" type="button" style="width:100%;margin-top:8px">Matikan kamera</button>
+    <div class="hint" style="margin-top:10px">Izinkan akses kamera saat diminta. Jika tersedia, pilih kamera belakang. Halaman ini harus dibuka melalui HTTPS.</div>
+    <div id="result" class="result" aria-live="polite"><strong>Siap memindai</strong>Hasil scan akan tampil di sini.</div>
+  </section>
+
+  <p class="foot">Timestamp dicatat oleh server Google Apps Script. Status ganda akan ditolak. Jangan bagikan PIN petugas kepada peserta.</p>
+</main>
+
+<script>
+  // GANTI dengan URL Web App Google Apps Script yang berakhiran /exec.
+  const API_URL = 'GANTI_URL_WEB_APP_APPS_SCRIPT';
+
+  let mode = 'CHECKIN';
+  let scanner = null;
+  let running = false;
+  let requestBusy = false;
+  let lastCode = '';
+  let lastAt = 0;
+
+  const $ = id => document.getElementById(id);
+  const resultBox = $('result');
+
+  function showResult(kind, title, detail, timestamp) {
+    resultBox.className = 'result ' + kind;
+    resultBox.innerHTML = '';
+    const strong = document.createElement('strong');
+    strong.textContent = title;
+    const body = document.createElement('div');
+    body.textContent = detail || '';
+    resultBox.append(strong, body);
+    if (timestamp) {
+      const time = document.createElement('div');
+      time.className = 'time';
+      time.textContent = 'Waktu server: ' + timestamp;
+      resultBox.appendChild(time);
+    }
+  }
+
+  function setMode(next) {
+    mode = next;
+    $('checkinMode').classList.toggle('active', mode === 'CHECKIN');
+    $('souvenirMode').classList.toggle('active', mode === 'SOUVENIR');
+    $('modeLabel').textContent = 'Mode: ' + (mode === 'CHECKIN' ? 'Check-in' : 'Souvenir');
+    $('pin').value = '';
+    showResult('', 'Mode diubah', 'Masukkan PIN petugas untuk mode ini.');
+  }
+  $('checkinMode').addEventListener('click', () => setMode('CHECKIN'));
+  $('souvenirMode').addEventListener('click', () => setMode('SOUVENIR'));
+
+  function jsonp(params) {
+    return new Promise((resolve, reject) => {
+      const callback = '__qrCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+      const script = document.createElement('script');
+      const query = new URLSearchParams({...params, callback});
+      let settled = false;
+      const cleanup = () => {
+        if (script.parentNode) script.parentNode.removeChild(script);
+        try { delete window[callback]; } catch (_) { window[callback] = undefined; }
+      };
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true; cleanup(); reject(new Error('Server tidak merespons. Periksa koneksi internet dan URL Apps Script.'));
+      }, 18000);
+      window[callback] = data => {
+        if (settled) return;
+        settled = true; clearTimeout(timer); cleanup(); resolve(data);
+      };
+      script.onerror = () => {
+        if (settled) return;
+        settled = true; clearTimeout(timer); cleanup(); reject(new Error('Gagal menghubungi Apps Script. Periksa URL deployment dan akses Web App.'));
+      };
+      script.src = API_URL + '?' + query.toString();
+      document.body.appendChild(script);
+    });
+  }
+
+  async function checkBackend() {
+    if (!API_URL.startsWith('https://script.google.com/')) {
+      $('apiStatus').textContent = 'URL Apps Script belum diatur';
+      $('apiDot').style.background = '#fb7185';
+      return;
+    }
+    try {
+      const r = await jsonp({action:'health'});
+      $('apiStatus').textContent = r.ok ? 'Backend terhubung' : 'Backend bermasalah';
+      $('apiDot').style.background = r.ok ? '#22c55e' : '#fb7185';
+    } catch (e) {
+      $('apiStatus').textContent = 'Backend tidak terhubung';
+      $('apiDot').style.background = '#fb7185';
+    }
+  }
+
+  async function handleScan(decodedText) {
+    const code = String(decodedText || '').trim();
+    const now = Date.now();
+    if (!code || requestBusy || (code === lastCode && now - lastAt < 4500)) return;
+    lastCode = code; lastAt = now;
+    const pin = $('pin').value.trim();
+    const operator = $('operator').value.trim() || 'Petugas';
+    if (!pin) {
+      showResult('warn', 'PIN belum diisi', 'Masukkan PIN petugas, lalu pindai QR kembali.');
+      return;
+    }
+    requestBusy = true;
+    showResult('', 'Memproses QR…', 'Menghubungi database acara.');
+    try {
+      const response = await jsonp({
+        action:'scan', mode, code, pin, operator,
+        device: navigator.userAgent.slice(0, 110)
+      });
+      if (response.ok) {
+        showResult('good', response.guest || 'Berhasil', response.message, response.timestamp);
+      } else {
+        const kind = String(response.status || '').startsWith('DUPLICATE') ? 'warn' : 'bad';
+        showResult(kind, response.message || 'Transaksi ditolak', response.guest || '', response.timestamp);
+      }
+    } catch (e) {
+      showResult('bad', 'Gagal mengirim hasil scan', e.message);
+    } finally {
+      requestBusy = false;
+    }
+  }
+
+  async function startCamera() {
+    if (!API_URL.startsWith('https://script.google.com/')) {
+      showResult('bad', 'Konfigurasi belum lengkap', 'Isi API_URL di index.html dengan URL Web App Apps Script.');
+      return;
+    }
+    if (!window.Html5Qrcode) {
+      showResult('bad', 'Library scanner gagal dimuat', 'Periksa koneksi internet atau CDN.');
+      return;
+    }
+    try {
+      scanner = new Html5Qrcode('reader', { verbose: false });
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || !cameras.length) throw new Error('Kamera tidak ditemukan. Periksa izin kamera dan tutup aplikasi lain yang memakai kamera.');
+      const back = cameras.find(c => /back|rear|environment|belakang/i.test(c.label));
+      const cameraId = back ? back.id : cameras[cameras.length - 1].id;
+      await scanner.start(
+        cameraId,
+        { fps: 10, qrbox: (w,h) => ({width: Math.min(260, Math.floor(w * .78)), height: Math.min(260, Math.floor(h * .78))}), aspectRatio: 1.0 },
+        handleScan,
+        () => {}
+      );
+      running = true;
+      $('startBtn').classList.add('hidden');
+      $('stopBtn').classList.remove('hidden');
+      showResult('', 'Kamera aktif', 'Arahkan QR tamu ke dalam kotak pemindai.');
+    } catch (e) {
+      showResult('bad', 'Tidak dapat mengaktifkan kamera', e.message || String(e));
+      if (scanner) { try { await scanner.clear(); } catch (_) {} scanner = null; }
+    }
+  }
+
+  async function stopCamera() {
+    if (scanner && running) {
+      try { await scanner.stop(); await scanner.clear(); } catch (_) {}
+    }
+    scanner = null; running = false;
+    $('startBtn').classList.remove('hidden');
+    $('stopBtn').classList.add('hidden');
+  }
+  $('startBtn').addEventListener('click', startCamera);
+  $('stopBtn').addEventListener('click', stopCamera);
+  checkBackend();
+</script>
+</body>
+</html>
