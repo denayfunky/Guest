@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resepsionis Check-in & Souvenir</title>
+  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Library QR Code Scanner -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body { background-color: #f4f6f9; }
@@ -19,19 +21,23 @@
           <h3 class="text-center mb-1 text-primary fw-bold">Check-in Tamu & Souvenir</h3>
           <p class="text-center text-muted small mb-4">Scan QR Code undangan atau cari data tamu secara manual</p>
           
+          <!-- Tombol Buka Kamera Scanner -->
           <div class="text-center mb-3">
             <button class="btn btn-outline-primary px-4 py-2 fw-bold" type="button" onclick="toggleScanner()">
               📷 Scan QR Code Tamu
             </button>
           </div>
           
+          <!-- Area Kamera Scanner -->
           <div id="reader" style="width: 100%; max-width: 400px; margin: 0 auto 20px auto; display: none;"></div>
 
+          <!-- Form Pencarian Manual -->
           <div class="input-group mb-4">
             <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="Nama, No. Telepon, atau Kode Unik..." autocomplete="off">
             <button class="btn btn-primary px-4 fw-bold" type="button" onclick="handleSearch()">Cari</button>
           </div>
 
+          <!-- Area Hasil Pencarian -->
           <div id="resultArea"></div>
         </div>
       </div>
@@ -39,8 +45,11 @@
   </div>
 
   <script>
-    // TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI:
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz27TOwWqqMYDQ5pSrbvMb2QtwVmNNmCO2rduObOszvbVCp_7KcIs7jkl0I3cuRuqmOew/exec";
+    // =========================================================================
+    // TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI BAWAH INI:
+    // =========================================================================
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5hOPqP-vVasQBx7VD9bYwm8pGsLHixcxWZQECMsY6bTJpVt8Hk5E6ewu8lLO9TfpLRA/exec";
+    // =========================================================================
 
     let html5QrcodeScanner = null;
 
@@ -77,127 +86,4 @@
       const resultArea = document.getElementById('resultArea');
 
       if (!keyword) {
-        resultArea.innerHTML = <div class="alert alert-warning">Mohon masukkan nama, nomor telepon, atau scan QR code tamu.</div>;
-        return;
-      }
-
-      if (APPS_SCRIPT_URL === "GANTI_DENGAN_URL_WEB_APP_ANDA") {
-        resultArea.innerHTML = <div class="alert alert-danger">Harap isi variabel <code>APPS_SCRIPT_URL</code> dengan URL Web App Google Apps Script Anda terlebih dahulu.</div>;
-        return;
-      }
-
-      resultArea.innerHTML = `
-        <div class="text-center py-4">
-          <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-2 text-muted">Mencari data tamu...</p>
-        </div>`;
-
-      try {
-        const url = ${APPS_SCRIPT_URL}?action=search&keyword=${encodeURIComponent(keyword)};
-        const response = await fetch(url);
-        const result = await response.json();
-
-        if (result.status === "success") {
-          displayResults(result.data);
-        } else {
-          resultArea.innerHTML = <div class="alert alert-danger">Gagal mengambil data: ${result.message}</div>;
-        }
-      } catch (error) {
-        resultArea.innerHTML = <div class="alert alert-danger">Terjadi kesalahan koneksi ke server API: ${error.message}</div>;
-      }
-    }
-
-    function displayResults(data) {
-      const resultArea = document.getElementById('resultArea');
-
-      if (!data || data.length === 0) {
-        resultArea.innerHTML = <div class="alert alert-danger">Tamu tidak ditemukan. Periksa kembali kata kunci atau QR Code.</div>;
-        return;
-      }
-
-      let html = <div class="list-group">;
-      data.forEach(tamu => {
-        const isCheckedIn = tamu.statusCheckin === "Sudah Check-in";
-        const isSouvenirTaken = tamu.statusSouvenir === "Sudah Diambil";
-
-        html += `
-          <div class="list-group-item p-3 mb-3 border rounded shadow-sm">
-            <div class="d-flex w-100 justify-content-between align-items-start flex-wrap gap-2 mb-1">
-              <h5 class="mb-0 text-dark fw-bold">${tamu.nama}</h5>
-              <div class="d-flex gap-1">
-                <span class="badge ${isCheckedIn ? 'bg-primary' : 'bg-secondary'} px-2 py-1">${tamu.statusCheckin}</span>
-                <span class="badge ${isSouvenirTaken ? 'bg-success' : 'bg-warning text-dark'} px-2 py-1">${tamu.statusSouvenir}</span>
-              </div>
-            </div>
-            <p class="mb-2 text-muted small">Kode Unik: <strong class="text-dark">${tamu.kodeUnik}</strong> | Telp: <strong>${tamu.noTlf}</strong></p>
-            
-            <div class="row my-2 text-center bg-light p-2 rounded small g-2">
-              <div class="col-3">Dewasa<br><strong class="fs-6">${tamu.qtyDewasa}</strong></div>
-              <div class="col-3">Anak<br><strong class="fs-6">${tamu.qtyAnak}</strong></div>
-              <div class="col-3">Suster<br><strong class="fs-6">${tamu.qtySuster}</strong></div>
-              <div class="col-3 text-primary">Souvenir<br><strong class="fs-6">${tamu.qtySouvenir} Pcs</strong></div>
-            </div>
-
-            ${tamu.waktuCheckin ? <small class="text-primary fw-semibold d-block mb-2">✓ Check-in tercatat pukul: ${tamu.waktuCheckin}</small> : ''}
-            
-            <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-              <button id="btn-checkin-${tamu.rowIdx}" 
-                      class="btn ${isCheckedIn ? 'btn-outline-secondary' : 'btn-primary'} btn-sm px-3 py-2 fw-bold" 
-                      onclick="kirimAksi('checkin', ${tamu.rowIdx})" 
-                      ${isCheckedIn ? 'disabled' : ''}>
-                ${isCheckedIn ? '✓ Sudah Check-in' : '1. Check-in Tamu'}
-              </button>
-
-              <button id="btn-souvenir-${tamu.rowIdx}" 
-                      class="btn ${isSouvenirTaken ? 'btn-outline-secondary' : 'btn-success'} btn-sm px-3 py-2 fw-bold" 
-                      onclick="kirimAksi('souvenir', ${tamu.rowIdx})" 
-                      ${isSouvenirTaken ? 'disabled' : ''}>
-                ${isSouvenirTaken ? '✓ Souvenir Diambil' : '2. Serahkan Souvenir'}
-              </button>
-            </div>
-          </div>
-        `;
-      });
-      html += </div>;
-      resultArea.innerHTML = html;
-    }
-
-    async function kirimAksi(actionType, rowIdx) {
-      const pesanKonfirmasi = actionType === 'checkin' 
-        ? "Konfirmasi check-in kehadiran untuk tamu ini?" 
-        : "Konfirmasi penyerahan souvenir untuk tamu ini?";
-        
-      if (!confirm(pesanKonfirmasi)) return;
-
-      const btnId = actionType === 'checkin' ? btn-checkin-${rowIdx} : btn-souvenir-${rowIdx};
-      const btn = document.getElementById(btnId);
-      const originalText = btn.innerText;
-      btn.disabled = true;
-      btn.innerText = "Memproses...";
-
-      try {
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: actionType, rowIdx: rowIdx })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          alert(result.message);
-          handleSearch();
-        } else {
-          alert("Gagal: " + result.message);
-          btn.disabled = false;
-          btn.innerText = originalText;
-        }
-      } catch (error) {
-        alert("Terjadi kesalahan saat menyimpan data: " + error.message);
-        btn.disabled = false;
-        btn.innerText = originalText;
-      }
-    }
-  </script>
-</body>
-</html>
+        resultArea.innerHTML = `<div class="alert alert-warning">Mohon masukkan nama, nomor telepon, atau scan QR code
