@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resepsionis Check-in & Souvenir</title>
+  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Library QR Code Scanner -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body { background-color: #f4f6f9; }
@@ -19,19 +21,23 @@
           <h3 class="text-center mb-1 text-primary fw-bold">Check-in Tamu & Souvenir</h3>
           <p class="text-center text-muted small mb-4">Scan QR Code undangan atau cari data tamu secara manual</p>
           
+          <!-- Tombol Buka Kamera Scanner -->
           <div class="text-center mb-3">
-            <button class="btn btn-outline-primary px-4 py-2 fw-bold" type="button" onclick="toggleScanner()">
+            <button class="btn btn-outline-primary px-4 py-2 fw-bold" type="button" id="btnToggleScanner">
               📷 Scan QR Code Tamu
             </button>
           </div>
           
+          <!-- Area Kamera Scanner -->
           <div id="reader" style="width: 100%; max-width: 400px; margin: 0 auto 20px auto; display: none;"></div>
 
+          <!-- Form Pencarian Manual -->
           <div class="input-group mb-4">
             <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="Nama, No. Telepon, atau Kode Unik..." autocomplete="off">
-            <button class="btn btn-primary px-4 fw-bold" type="button" onclick="handleSearch()">Cari</button>
+            <button class="btn btn-primary px-4 fw-bold" type="button" id="btnSearch">Cari</button>
           </div>
 
+          <!-- Area Hasil Pencarian -->
           <div id="resultArea"></div>
         </div>
       </div>
@@ -47,8 +53,18 @@
 
     let html5QrcodeScanner = null;
 
-    document.getElementById('searchInput').addEventListener('keypress', function (e) {
-      if (e.key === 'Enter') handleSearch();
+    // Daftarkan event listener setelah halaman selesai dimuat sepenuhnya
+    document.addEventListener("DOMContentLoaded", function() {
+      const searchInput = document.getElementById('searchInput');
+      const btnSearch = document.getElementById('btnSearch');
+      const btnToggleScanner = document.getElementById('btnToggleScanner');
+
+      searchInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') handleSearch();
+      });
+
+      btnSearch.addEventListener('click', handleSearch);
+      btnToggleScanner.addEventListener('click', toggleScanner);
     });
 
     function toggleScanner() {
@@ -63,7 +79,8 @@
     }
 
     function closeScanner() {
-      document.getElementById('reader').style.display = 'none';
+      const readerDiv = document.getElementById('reader');
+      if (readerDiv) readerDiv.style.display = 'none';
       if (html5QrcodeScanner) {
         html5QrcodeScanner.clear().catch(err => console.error("Scanner close error:", err));
       }
@@ -127,4 +144,76 @@
         const isSouvenirTaken = tamu.statusSouvenir === "Sudah Diambil";
 
         html += `
-          <div class="list-group-item p-3 mb-
+          <div class="list-group-item p-3 mb-3 border rounded shadow-sm">
+            <div class="d-flex w-100 justify-content-between align-items-start flex-wrap gap-2 mb-1">
+              <h5 class="mb-0 text-dark fw-bold">${tamu.nama}</h5>
+              <div class="d-flex gap-1">
+                <span class="badge ${isCheckedIn ? 'bg-primary' : 'bg-secondary'}">${tamu.statusCheckin}</span>
+                <span class="badge ${isSouvenirTaken ? 'bg-success' : 'bg-warning text-dark'}">${tamu.statusSouvenir}</span>
+              </div>
+            </div>
+            <p class="mb-2 text-muted small">Kode: <strong>${tamu.kodeUnik}</strong> | Telp: <strong>${tamu.noTlf}</strong></p>
+            
+            <div class="row my-2 text-center bg-light p-2 rounded small g-2">
+              <div class="col-3">Dewasa<br><strong>${tamu.qtyDewasa}</strong></div>
+              <div class="col-3">Anak<br><strong>${tamu.qtyAnak}</strong></div>
+              <div class="col-3">Suster<br><strong>${tamu.qtySuster}</strong></div>
+              <div class="col-3 text-primary">Souvenir<br><strong>${tamu.qtySouvenir} Pcs</strong></div>
+            </div>
+
+            ${tamu.waktuCheckin ? <small class="text-primary fw-semibold d-block mb-2">✓ Check-in: ${tamu.waktuCheckin}</small> : ''}
+            
+            <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
+              <button id="btn-checkin-${tamu.rowIdx}" class="btn ${isCheckedIn ? 'btn-outline-secondary' : 'btn-primary'} btn-sm px-3 py-2 fw-bold" onclick="window.kirimAksi('checkin', ${tamu.rowIdx})" ${isCheckedIn ? 'disabled' : ''}>
+                ${isCheckedIn ? '✓ Sudah Check-in' : '1. Check-in Tamu'}
+              </button>
+              <button id="btn-souvenir-${tamu.rowIdx}" class="btn ${isSouvenirTaken ? 'btn-outline-secondary' : 'btn-success'} btn-sm px-3 py-2 fw-bold" onclick="window.kirimAksi('souvenir', ${tamu.rowIdx})" ${isSouvenirTaken ? 'disabled' : ''}>
+                ${isSouvenirTaken ? '✓ Souvenir Diambil' : '2. Serahkan Souvenir'}
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      html += </div>;
+      resultArea.innerHTML = html;
+    }
+
+    // Daftarkan fungsi kirimAksi ke window agar bisa diakses secara global oleh tombol onclick di dalam template dinamis
+    window.kirimAksi = async function(actionType, rowIdx) {
+      if (!confirm("Konfirmasi proses data ini?")) return;
+
+      const btnId = actionType === 'checkin' ? btn-checkin-${rowIdx} : btn-souvenir-${rowIdx};
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      
+      const originalText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = "Memproses...";
+
+      try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: actionType, rowIdx: rowIdx })
+        });
+
+        const textData = await response.text();
+        let result = JSON.parse(textData);
+
+        if (result.success) {
+          alert(result.message);
+          handleSearch();
+        } else {
+          alert("Gagal: " + result.message);
+          btn.disabled = false;
+          btn.innerText = originalText;
+        }
+      } catch (error) {
+        alert("Kesalahan sistem: " + error.message);
+        btn.disabled = false;
+        btn.innerText = originalText;
+      }
+    };
+  </script>
+</body>
+</html>
