@@ -48,12 +48,11 @@
     // =========================================================================
     // TEMPELKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI BAWAH INI:
     // =========================================================================
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5hOPqP-vVasQBx7VD9bYwm8pGsLHixcxWZQECMsY6bTJpVt8Hk5E6ewu8lLO9TfpLRA/exec";
+    const APPS_SCRIPT_URL = "GANTI_DENGAN_URL_WEB_APP_ANDA";
     // =========================================================================
 
     let html5QrcodeScanner = null;
 
-    // Daftarkan event listener setelah halaman selesai dimuat sepenuhnya
     document.addEventListener("DOMContentLoaded", function() {
       const searchInput = document.getElementById('searchInput');
       const btnSearch = document.getElementById('btnSearch');
@@ -97,19 +96,19 @@
       const resultArea = document.getElementById('resultArea');
 
       if (!keyword) {
-        resultArea.innerHTML = <div class="alert alert-warning">Mohon masukkan kata kunci pencarian.</div>;
+        resultArea.innerHTML = '<div class="alert alert-warning">Mohon masukkan kata kunci pencarian.</div>';
         return;
       }
 
       if (APPS_SCRIPT_URL.includes("GANTI_DENGAN_URL")) {
-        resultArea.innerHTML = <div class="alert alert-danger">Harap isi variabel <code>APPS_SCRIPT_URL</code> dengan URL Web App Anda.</div>;
+        resultArea.innerHTML = '<div class="alert alert-danger">Harap isi variabel <code>APPS_SCRIPT_URL</code> dengan URL Web App Anda.</div>';
         return;
       }
 
-      resultArea.innerHTML = <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Mencari...</p></div>;
+      resultArea.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Mencari...</p></div>';
 
       try {
-        const url = ${APPS_SCRIPT_URL}?action=search&keyword=${encodeURIComponent(keyword)};
+        const url = APPS_SCRIPT_URL + '?action=search&keyword=' + encodeURIComponent(keyword);
         const response = await fetch(url);
         const textData = await response.text();
         
@@ -117,72 +116,75 @@
         try {
           result = JSON.parse(textData);
         } catch (err) {
-          resultArea.innerHTML = <div class="alert alert-danger">Respon server tidak valid (bukan JSON). Cek kembali URL deployment Anda.</div>;
+          resultArea.innerHTML = '<div class="alert alert-danger">Respon server tidak valid (bukan JSON). Cek kembali URL deployment Anda.</div>';
           return;
         }
 
         if (result.status === "success") {
           displayResults(result.data);
         } else {
-          resultArea.innerHTML = <div class="alert alert-danger">${result.message}</div>;
+          resultArea.innerHTML = '<div class="alert alert-danger">' + result.message + '</div>';
         }
       } catch (error) {
-        resultArea.innerHTML = <div class="alert alert-danger">Koneksi gagal: ${error.message}</div>;
+        resultArea.innerHTML = '<div class="alert alert-danger">Koneksi gagal: ' + error.message + '</div>';
       }
     }
 
     function displayResults(data) {
       const resultArea = document.getElementById('resultArea');
       if (!data || data.length === 0) {
-        resultArea.innerHTML = <div class="alert alert-danger">Tamu tidak ditemukan.</div>;
+        resultArea.innerHTML = '<div class="alert alert-danger">Tamu tidak ditemukan.</div>';
         return;
       }
 
-      let html = <div class="list-group">;
+      let html = '<div class="list-group">';
       data.forEach(tamu => {
         const isCheckedIn = tamu.statusCheckin === "Sudah Check-in";
         const isSouvenirTaken = tamu.statusSouvenir === "Sudah Diambil";
 
-        html += `
-          <div class="list-group-item p-3 mb-3 border rounded shadow-sm">
-            <div class="d-flex w-100 justify-content-between align-items-start flex-wrap gap-2 mb-1">
-              <h5 class="mb-0 text-dark fw-bold">${tamu.nama}</h5>
-              <div class="d-flex gap-1">
-                <span class="badge ${isCheckedIn ? 'bg-primary' : 'bg-secondary'}">${tamu.statusCheckin}</span>
-                <span class="badge ${isSouvenirTaken ? 'bg-success' : 'bg-warning text-dark'}">${tamu.statusSouvenir}</span>
-              </div>
-            </div>
-            <p class="mb-2 text-muted small">Kode: <strong>${tamu.kodeUnik}</strong> | Telp: <strong>${tamu.noTlf}</strong></p>
-            
-            <div class="row my-2 text-center bg-light p-2 rounded small g-2">
-              <div class="col-3">Dewasa<br><strong>${tamu.qtyDewasa}</strong></div>
-              <div class="col-3">Anak<br><strong>${tamu.qtyAnak}</strong></div>
-              <div class="col-3">Suster<br><strong>${tamu.qtySuster}</strong></div>
-              <div class="col-3 text-primary">Souvenir<br><strong>${tamu.qtySouvenir} Pcs</strong></div>
-            </div>
+        const badgeCheckinClass = isCheckedIn ? 'bg-primary' : 'bg-secondary';
+        const badgeSouvenirClass = isSouvenirTaken ? 'bg-success' : 'bg-warning text-dark';
+        
+        const btnCheckinClass = isCheckedIn ? 'btn-outline-secondary' : 'btn-primary';
+        const btnSouvenirClass = isSouvenirTaken ? 'btn-outline-secondary' : 'btn-success';
 
-            ${tamu.waktuCheckin ? <small class="text-primary fw-semibold d-block mb-2">✓ Check-in: ${tamu.waktuCheckin}</small> : ''}
-            
-            <div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">
-              <button id="btn-checkin-${tamu.rowIdx}" class="btn ${isCheckedIn ? 'btn-outline-secondary' : 'btn-primary'} btn-sm px-3 py-2 fw-bold" onclick="window.kirimAksi('checkin', ${tamu.rowIdx})" ${isCheckedIn ? 'disabled' : ''}>
-                ${isCheckedIn ? '✓ Sudah Check-in' : '1. Check-in Tamu'}
-              </button>
-              <button id="btn-souvenir-${tamu.rowIdx}" class="btn ${isSouvenirTaken ? 'btn-outline-secondary' : 'btn-success'} btn-sm px-3 py-2 fw-bold" onclick="window.kirimAksi('souvenir', ${tamu.rowIdx})" ${isSouvenirTaken ? 'disabled' : ''}>
-                ${isSouvenirTaken ? '✓ Souvenir Diambil' : '2. Serahkan Souvenir'}
-              </button>
-            </div>
-          </div>
-        `;
+        html += '<div class="list-group-item p-3 mb-3 border rounded shadow-sm">';
+        html += '<div class="d-flex w-100 justify-content-between align-items-start flex-wrap gap-2 mb-1">';
+        html += '<h5 class="mb-0 text-dark fw-bold">' + tamu.nama + '</h5>';
+        html += '<div class="d-flex gap-1">';
+        html += '<span class="badge ' + badgeCheckinClass + '">' + tamu.statusCheckin + '</span>';
+        html += '<span class="badge ' + badgeSouvenirClass + '">' + tamu.statusSouvenir + '</span>';
+        html += '</div></div>';
+        html += '<p class="mb-2 text-muted small">Kode: <strong>' + tamu.kodeUnik + '</strong> | Telp: <strong>' + tamu.noTlf + '</strong></p>';
+        
+        html += '<div class="row my-2 text-center bg-light p-2 rounded small g-2">';
+        html += '<div class="col-3">Dewasa<br><strong>' + tamu.qtyDewasa + '</strong></div>';
+        html += '<div class="col-3">Anak<br><strong>' + tamu.qtyAnak + '</strong></div>';
+        html += '<div class="col-3">Suster<br><strong>' + tamu.qtySuster + '</strong></div>';
+        html += '<div class="col-3 text-primary">Souvenir<br><strong>' + tamu.qtySouvenir + ' Pcs</strong></div>';
+        html += '</div>';
+
+        if (tamu.waktuCheckin) {
+          html += '<small class="text-primary fw-semibold d-block mb-2">✓ Check-in: ' + tamu.waktuCheckin + '</small>';
+        }
+        
+        html += '<div class="d-flex justify-content-end gap-2 mt-3 flex-wrap">';
+        html += '<button id="btn-checkin-' + tamu.rowIdx + '" class="btn ' + btnCheckinClass + ' btn-sm px-3 py-2 fw-bold" onclick="window.kirimAksi(\'checkin\', ' + tamu.rowIdx + ')" ' + (isCheckedIn ? 'disabled' : '') + '>';
+        html += (isCheckedIn ? '✓ Sudah Check-in' : '1. Check-in Tamu') + '</button>';
+        
+        html += '<button id="btn-souvenir-' + tamu.rowIdx + '" class="btn ' + btnSouvenirClass + ' btn-sm px-3 py-2 fw-bold" onclick="window.kirimAksi(\'souvenir\', ' + tamu.rowIdx + ')" ' + (isSouvenirTaken ? 'disabled' : '') + '>';
+        html += (isSouvenirTaken ? '✓ Souvenir Diambil' : '2. Serahkan Souvenir') + '</button>';
+        html += '</div></div>';
       });
-      html += </div>;
+      html += '</div>';
       resultArea.innerHTML = html;
     }
 
-    // Daftarkan fungsi kirimAksi ke window agar bisa diakses secara global oleh tombol onclick di dalam template dinamis
     window.kirimAksi = async function(actionType, rowIdx) {
-      if (!confirm("Konfirmasi proses data ini?")) return;
+      const pesan = actionType === 'checkin' ? "Konfirmasi check-in kehadiran tamu?" : "Konfirmasi penyerahan souvenir tamu?";
+      if (!confirm(pesan)) return;
 
-      const btnId = actionType === 'checkin' ? btn-checkin-${rowIdx} : btn-souvenir-${rowIdx};
+      const btnId = actionType === 'checkin' ? 'btn-checkin-' + rowIdx : 'btn-souvenir-' + rowIdx;
       const btn = document.getElementById(btnId);
       if (!btn) return;
       
