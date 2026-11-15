@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Resepsionis QR</title>
+<title>Guest Management</title>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{--navy:#17365D;--green:#16834a;--red:#b42318;--bg:#f3f6fa}
@@ -33,7 +33,7 @@ button.secondary{background:#e8eef6;color:var(--navy)}
 <body>
 <header>
 <h1>Resepsionis QR</h1>
-<p>Scan QR tamu • Terhubung ke Google Sheets</p>
+<p>Birthday Louis • Marqen Hotel 28 November 2026</p>
 </header>
 <main>
 <section class="card">
@@ -66,7 +66,7 @@ button.secondary{background:#e8eef6;color:var(--navy)}
 <section id="result"></section>
 
 <section class="card">
-<p class="hint">Qty Souvenir adalah jatah yang sudah ditetapkan pada database TAMU. Petugas tidak perlu memasukkan jumlah saat scan. Souvenir hanya dapat ditukar setelah check-in dan satu QR hanya dapat ditukar satu kali.</p>
+<p class="hint">Grace and Irene 2026.</p>
 <p class="api">API: <span id="apiStatus">Menghubungkan…</span></p>
 </section>
 </main>
@@ -183,8 +183,8 @@ function processCode(rawCode){
  const operator=document.getElementById('operator').value.trim();
 
  if(!operator){
-  showResult('bad','Isi nama petugas',
-   '<p>Masukkan nama petugas sebelum memindai QR.</p>');
+  showResult('bad','Isi nama resepsionis',
+   '<p>Masukkan nama resepsionis sebelum memindai QR.</p>');
   return;
  }
 
@@ -212,9 +212,8 @@ function processCode(rawCode){
   }
 
   if(currentMode()==='souvenir'&&g.name){
-   d+='<p><b>Nama penerima/penukar:</b> '+esc(g.name)+'</p>';
    d+='<p><b>Jatah souvenir:</b> '+esc(g.qtySouvenir)+' buah</p>';
-   d+='<p><b>Petugas yang melayani:</b> '+
+   d+='<p><b>resepsionis yang melayani:</b> '+
    esc(res.souvenirOperator||g.souvenirOperator||operator)+'</p>';
   }else if(g.name){
    d+='<p><b>Jatah souvenir:</b> '+esc(g.qtySouvenir)+' buah</p>';
@@ -358,7 +357,7 @@ window.addEventListener('load',()=>{
  changeMode();
 
  document.getElementById('apiStatus').textContent=
- 'URL API sudah dipasang';
+ 'Server Terhubung';
 
  if(!window.isSecureContext){
   document.getElementById('cameraHint').textContent=
